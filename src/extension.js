@@ -12,6 +12,12 @@ function activate(context) {
 	const htmlFile = path.join(base, "electron-sandbox", "workbench", "workbench.html");
 	const BackupFilePath = uuid =>
 		path.join(base, "electron-sandbox", "workbench", `workbench.${uuid}.bak-custom-css`);
+	const patchToken = "VSCODE-CUSTOM-CSS";
+	const dynamicPatchTokenPatterns = {
+		"SessionID" : new RegExp(`<!-- !! ${patchToken}-SESSION-ID ([0-9a-fA-F-]+) !! -->`),
+		"HTMLPart" : new RegExp(`<!-- !! ${patchToken}-SESSION-ID ([0-9a-fA-F-]+) !! -->`),
+		"SessionIDWhitespace" : new RegExp(`<!-- !! ${patchToken}-SESSION-ID [\\w-]+ !! -->\\n*`, 'g')
+	};
 
 	async function getContent(url) {
 		if (/^file:/.test(url)) {
@@ -55,7 +61,7 @@ function activate(context) {
 		try {
 			const htmlContent = await fs.promises.readFile(htmlFilePath, "utf-8");
 			const m = htmlContent.match(
-				/<!-- !! VSCODE-CUSTOM-CSS-SESSION-ID ([0-9a-fA-F-]+) !! -->/
+				dynamicPatchTokenPatterns.SessionID
 			);
 			if (!m) return null;
 			else return m[1];
@@ -117,11 +123,13 @@ function activate(context) {
 
 		html = html.replace(
 			/(<\/html>)/,
-			`<!-- !! VSCODE-CUSTOM-CSS-SESSION-ID ${uuidSession} !! -->\n` +
-				"<!-- !! VSCODE-CUSTOM-CSS-START !! -->\n" +
+			`<!-- !! ${patchToken}-SESSION-ID ${uuidSession} !! -->\n` +
+				`<!-- !! ${patchToken}-START !! -->\n` +
+				/* [RESOURCE-BUILDER-START] */
 				indicatorJS +
 				injectHTML +
-				"<!-- !! VSCODE-CUSTOM-CSS-END !! -->\n</html>"
+				/* [RESOURCE-BUILDER-END] */
+				`<!-- !! ${patchToken}-END !! -->\n</html>`
 		);
 		try {
 			await fs.promises.writeFile(htmlFile, html, "utf-8");
@@ -131,12 +139,16 @@ function activate(context) {
 		}
 		enabledRestart();
 	}
+	/**
+	 * @param {string} html 
+	 * @returns {string}
+	 */
 	function clearExistingPatches(html) {
 		html = html.replace(
-			/<!-- !! VSCODE-CUSTOM-CSS-START !! -->[\s\S]*?<!-- !! VSCODE-CUSTOM-CSS-END !! -->\n*/,
+			dynamicPatchTokenPatterns.HTMLPart,
 			""
 		);
-		html = html.replace(/<!-- !! VSCODE-CUSTOM-CSS-SESSION-ID [\w-]+ !! -->\n*/g, "");
+		html = html.replace(dynamicPatchTokenPatterns.SessionIDWhitespace, "");
 		return html;
 	}
 
