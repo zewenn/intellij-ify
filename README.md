@@ -1,4 +1,4 @@
-# Intellij-ify
+# IntelliJ-ify
 
 *Notes from [be5invis](https://github.com/be5invis)'s extension*
 ### **SPECIAL NOTE: If Visual Studio Code complains about that it is corrupted, simply click “Don't show again”.**
